@@ -1,0 +1,41 @@
+#
+# This group is read both both by the client and the server
+# use it for options that affect everything
+#
+[client-server]
+
+#
+# This group is read by the server
+#
+
+[mysqld]
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
+user=mysql
+binlog_format=ROW
+bind-address={{ansible_ssh_host}}
+
+# InnoDB Configuration
+default_storage_engine=innodb
+innodb_autoinc_lock_mode=2
+innodb_flush_log_at_trx_commit=0
+innodb_buffer_pool_size=122M
+
+# Galera Cluster Configuration
+wsrep_provider=/usr/lib64/galera/libgalera_smm.so
+wsrep_provider_options="pc.recovery=TRUE;gcache.size=300M"
+wsrep_cluster_name="{{galera_name}}"
+wsrep_cluster_address="gcomm://{{controller1_ip}},{{controller2_ip}},{{controller3_ip}}"
+wsrep_sst_method=rsync
+wsrep_sst_auth=root:{{wsrep_sst_pass}}
+wsrep_node_name="{{ansible_nodename}}"
+wsrep_node_address="{{ansible_ssh_host}}"
+
+# Disabling symbolic-links is recommended to prevent assorted security risks
+symbolic-links=0
+
+#
+# include all files from the config directory
+#
+!includedir /etc/my.cnf.d
+

@@ -1,0 +1,17 @@
+#localhost ansible_connection=local
+controller1 ansible_ssh_host=10.107.69.218 
+controller2 ansible_ssh_host=10.107.69.219 
+controller3 ansible_ssh_host=10.107.69.220 
+
+haproxy ansible_ssh_host=10.107.69.217
+
+[controller]
+controller1
+controller2
+controller3
+
+[all:vars]
+ansible_ssh_user=root 
+ansible_ssh_pass=redhat
+
+

@@ -1,0 +1,101 @@
+---
+# tasks file for common
+
+- name: Setup system hostname of Controller3 node
+  hostname: 
+    name: controller3
+  register: cont3_hostname
+  tags:
+    - setup-hostname3
+
+- name: Configure Public Interface eth0 IP in Controller3
+  template:
+    src: public_eth0_ip.j2
+    dest: /etc/sysconfig/network-scripts/ifcfg-eth0
+    backup: yes
+    owner: root
+    group: root
+    mode: 0644
+  register: eth0_host3
+  tags:
+    - host3_eth0
+
+#- name: Configure Private Interface eth1 for VM traffic in Controller
+#  template:
+#    src: private_eth1_ip.j2
+#    dest: /etc/sysconfig/network-scripts/ifcfg-eth1
+#    owner: root
+#    group: root
+#    mode: 0644
+#  register: eth1_ip
+#  tags:
+#    - setup_eth1_ip
+
+#- name: Update hosts file
+#  shell: echo "`cat /etc/sysconfig/network-scripts/ifcfg-eth0|grep IPADDR| awk -F'=' '{print $2}'` $HOSTNAME" | tee -a /etc/hosts
+#  register: hosts_file
+#  tags:
+#    - update_hosts_file
+
+#- name: Install EPEL and Newton Repo
+#  package: name={{item}} state=present
+#  with_items:
+#     - yum-utils
+#     - https://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-8.noarch.rpm
+#     - centos-release-openstack-newton
+#  register: repo_install
+#  tags:
+#    - install_repo
+
+#- name: Enable EPEL
+#  command: yum-config-manager --enable epel
+#  register: epel
+#  tags:
+#    - setup_epel
+
+#- name: Install required packages for Newton
+#  package: name={{item}} state=present
+#  with_items:
+#     - vim
+#     - net-tools
+#     - python-openstackclient
+#     - openstack-selinux
+#     - chrony
+#  register: req_pkgs
+#  tags:
+#    - install_pkgs
+
+#- name: Start NTP Service
+#  service: name=chronyd state=started enabled=yes
+#  register: ntp_conf
+#  tags:
+#    - setup_ntp
+
+#- name: Disable NetworkManager and Firewalld
+#  service: name={{ item }} state=stopped enabled=no
+#  with_items:
+#    - NetworkManager
+#  register: unwanted_service
+#  tags:
+#    - disable_unwanted_srv 
+
+#- name: Reload network service
+#  service: name=network state=restarted 
+#  register: net_srv
+#  tags:
+#    - restart_net_srv
+
+#- name: OS update
+#  command: yum upgrade -y
+#  register: os_update
+#  tags:
+#    - os_upgrade 
+#
+#- name: Create Cinder VG
+#  command: "{{ item }}"
+#  with_items:
+#    - pvcreate /dev/{{ cinder_disk }}
+#    - vgcreate cinder-volumes /dev/{{ cinder_disk }}
+#  register: cinder_vg
+#  tags:
+#    - create_cin_vg

@@ -1,0 +1,11 @@
+---
+
+- hosts: controller
+# The any_errors_fatal play option will mark all hosts as failed if any fails, causing an immediate abort:
+  any_errors_fatal: true
+  become: true
+  become_user: root
+  vars_files:
+    - group_vars/all
+  roles:
+    - rabbitmq

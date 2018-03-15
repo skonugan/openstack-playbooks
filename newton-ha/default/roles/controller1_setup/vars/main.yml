@@ -1,0 +1,7 @@
+---
+# vars file for common
+
+private_con_ip: 192.168.1.221
+private_con_netmask: 255.255.255.0
+
+public_con1_ip: 10.107.69.218

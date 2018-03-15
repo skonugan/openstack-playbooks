@@ -1,0 +1,117 @@
+---
+# tasks file for RabbitMQ HA
+# This RabbitMQ cluster will be managed by rabbitmq itself. No pacemaker resource is definded for this.
+# To setup rabbitmq with HA follow below links
+# http://www.rabbitmq.com/pacemaker.html
+# https://www.packtpub.com/books/content/deploying-highly-available-openstack
+#
+
+- name: Install RabbitMQ packages
+  yum: name=rabbitmq-server state=present
+  when: ansible_distribution == "CentOS"
+  register: install_mq_pkg
+  until: install_mq_pkg | success
+  tags:
+    - install_rabbitmq
+
+- name: Start RabbitMQ in controller1
+  service: name=rabbitmq-server state=started enabled=yes
+  when: ansible_nodename == "{{controller1_host}}"
+  register: mq_node1
+  until: mq_node1 | success
+  retries: 2
+  delay: 5
+  tags:
+    - start_mq_node1
+
+- name: Stop RabbitMQ in node1
+  service: name=rabbitmq-server state=stopped
+  when: ansible_nodename == "{{controller1_host}}"
+
+- name: Fetch cookie from controller1
+  fetch: 
+    src: /var/lib/rabbitmq/.erlang.cookie
+    dest: /tmp/
+    flat: yes
+  when: ansible_nodename == "{{controller1_host}}"
+  register: fetch_file
+  tags:
+    - fetch_cookie
+
+- name: Copy cookie to controller2/3
+  copy:
+    src: /tmp/.erlang.cookie
+    dest: /var/lib/rabbitmq/.erlang.cookie
+    mode: 0400
+    owner: rabbitmq
+    group: rabbitmq
+  when: ( ansible_nodename == "{{controller2_host}}" ) or
+        ( ansible_nodename == "{{controller3_host}}" )
+  register: cookie-to-other
+  tags:
+    - copy_cookie
+
+- name: Start RabbitMQ in all nodes
+  service: name=rabbitmq-server state=started enabled=yes
+  register: mq_start
+  until: mq_start | success
+  retries: 3
+  delay: 5
+  tags:
+    - start_mq_all
+
+#- name: Check if rabbitmq-server is running
+#  command: rabbitmqctl cluster_status
+#  ignore_errors: no
+#  changed_when: false
+#  register: service_rabbitmq-server_status
+#  tags:
+#    - check_mq_status
+
+#- name: Report status of RabbitMQ
+
+#    msg: |
+#      Service rabbitmq-server is not running.
+#      Output of `systemctl status rabbitmq-server`:
+#      {{ service_rabbitmq-server_status.stderr }}
+#  when: service_rabbitmq-server_status | failed
+#  tags:
+#    - show_mq_failure
+#
+#- name: rabbitmqctl cluster_status check
+#  command: rabbitmqctl cluster_status
+#  ignore_errors: no
+#  changed_when: false
+#  register: mq_cluster_check
+#  tags:
+#    - rabbitmqctl_cluster_check
+#- debug: 
+#    var: mq_cluster_check.stdout
+
+- name: Run the following commands in controller1 to add others in cluster
+  command: "{{item}}"
+  with_items:
+    - rabbitmqctl stop_app
+    - rabbitmqctl join_cluster --ram rabbit@{{controller1_host}}
+    - rabbitmqctl start_app
+  ignore_errors: no
+  when: ( ansible_nodename == "{{controller2_host}}" ) or
+        ( ansible_nodename == "{{controller3_host}}" )
+  register: join_cluster
+  tags:
+    - join_mq_cluster
+- debug: 
+    var: join_cluster.stdout
+
+# To ensure that all queues except those with auto-generated names are mirrored across all running nodes, 
+# set the ha-mode policy key to all by running the following command on one of the nodes
+
+- name: Set Queue policy
+  script: mq_set_policy.sh
+  ignore_errors: no
+  when: ansible_nodename == "{{controller1_host}}"
+  register: set_queue_policy
+  tags: 
+    - mq_queue_policy
+- debug: var=set_queue_policy.stdout
+

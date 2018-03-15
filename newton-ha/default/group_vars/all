@@ -1,0 +1,44 @@
+---
+# vars file for common
+
+private_con1_ip: 192.168.1.218
+private_con2_ip: 192.168.1.219
+private_con3_ip: 192.168.1.220
+
+private_con_netmask: 255.255.255.0
+
+public_con_netmask: 255.255.255.224
+public_gw: 10.107.69.193
+public_dns: 10.151.22.5
+
+cinder_disk: xvdb
+
+controller_ip: 10.107.69.217
+controller1_ip: 10.107.69.218
+controller2_ip: 10.107.69.219
+controller3_ip: 10.107.69.220
+haproxy_ip: 10.107.69.217
+
+controller_host: controller
+controller1_host: controller1
+controller2_host: controller2
+controller3_host: controller3
+
+# MySQL variables
+
+msql_port: 3306
+db_network_bit: 10.107.69
+galera_name: os_galera_cluster
+wsrep_sst_pass: redhat
+clustercheck_user: clustercheck_user
+clustercheck_usr_pass: redhat!cluschkpass
+# pcs cluster
+
+pcs_user: hacluster
+pcs_pass: haclus@pass
+pcs_clus_name: ha-controller
+
+# HAproxy
+vip_name: ha-vip
+hapxy_resrc: lb-haproxy
+

@@ -1,0 +1,1 @@
+newton ansible_ssh_host=10.107.69.221 ansible_ssh_user=sumit ansible_ssh_pass=redhat

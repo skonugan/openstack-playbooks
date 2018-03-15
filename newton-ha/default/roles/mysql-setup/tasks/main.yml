@@ -1,0 +1,84 @@
+---
+# tasks file for common
+
+#- name: Setup Firewalld rules for mysql HA
+#  firewalld:
+#    port: {{ item }}/tcp
+#    permanent: true
+#    state: enabled
+#  with_items:
+#    - 3306
+#    - 4567
+#    - 4568
+#    - 4444
+
+- name: Install required packages for MariaDB Galera Cluster
+  yum: name={{ item }} state=present
+  with_items:
+    - mariadb-server-galera
+    - galera
+  register: inst_pkg
+  until: inst_pkg | success
+  tags:
+    - inst_galera_pkg
+
+- name: Setup Mariadb conf file
+  template:
+    src: mysql_conf.j2
+    dest: /etc/my.cnf
+    owner: root
+    group: root
+    backup: yes
+    mode: 0644
+  register: mysql_conf
+  tags:
+    - setup_mysql_conf
+ 
+- name: Setup Galera conf file
+  template:
+    src: galera_conf.j2
+    dest: /etc/my.cnf.d/galera.cnf
+    owner: root
+    group: root
+    backup: yes
+    mode: 0644
+  register: galera_conf
+  tags:
+    - setup_galera_conf
+
+- name: Initialize Galera Cluster and allow active node to connect in network
+  command: "{{item}}"
+  with_items:
+    - galera_new_cluster
+    - systemctl enable mariadb
+    - mysql -h {{ansible_nodename}} -u root mysql --execute="grant all privileges on *.* to 'root'@'{{db_network_bit}}.%' identified by '{{wsrep_sst_pass}}' with grant option"
+  when: ansible_nodename == "{{controller1_host}}"
+  register: init_cluster
+  until: init_cluster | success
+  delay: 10
+  tags:
+    - initialize_galera_cluster
+
+- name: Start MariaDB service on other nodes
+  command: "{{item}}"
+  with_items:
+    - systemctl start mariadb
+    - systemctl enable mariadb
+  register: start_db
+  until: start_db | success
+  when: (ansible_nodename == "{{controller2_host}}") or
+        (ansible_nodename == "{{controller3_host}}")
+  delay: 10
+  tags:
+    - start_slave_db
+
+- name: Check galera cluster status
+  command: "{{item}}"
+  with_items:
+    - mysql -u root -e "SHOW VARIABLES LIKE 'wsrep_cluster_name';"
+    - mysql -u root -e "SHOW STATUS LIKE 'wsrep_cluster_size';"
+  register: chk_galera
+  tags:
+    - check_galera
+- debug: var=chk_galera.stdout_lines
+

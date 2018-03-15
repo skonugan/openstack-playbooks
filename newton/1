@@ -1,0 +1,87 @@
+---
+# tasks file for common
+
+- name: Setup system hostname of Controller node
+  hostname: 
+    name: newton
+  register: cont_hostname
+  tags:
+    - setup-hostname
+
+- name: Configure Public Interface eth0 IP in Controller
+  template:
+    src: public_eth0_ip.j2
+    dest: /etc/sysconfig/network-scripts/ifcfg-eth0
+    backup: yes
+    owner: root
+    group: root
+    mode: 0644
+  register: eth0_ip
+  tags:
+    - setup_eth0_ip
+
+- name: Configure Private Interface eth1 for VM traffic in Controller
+  template:
+    src: private_eth1_ip.j2
+    dest: /etc/sysconfig/network-scripts/ifcfg-eth1
+    owner: root
+    group: root
+    mode: 0644
+  register: eth1_ip
+  tags:
+    - setup_eth1_ip
+
+- name: Update hosts file
+  command: echo "`cat /etc/sysconfig/network-scripts/ifcfg-eth0|grep IPADDR| awk -F'=' '{print $2}'` $HOSTNAME" | tee -a /etc/hosts
+  register: hosts_file
+  tags:
+    - update_hosts_file
+
+- name: Setup EPEL Repo
+  yum: 
+    name: {{ item }} 
+    state: present
+  with_items:
+    - yum-utils
+    - https://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-8.noarch.rpm
+
+  command: yum-config-manager --enable epel
+  register: epel
+  tags:
+    - setup_epel
+
+- name: Configure openstack Mitaka repo for CentOS7 and install other packages
+  yum: name={{ item }} state=present
+  with_items:
+    - vim
+    - net-tools
+    - centos-release-openstack-mitaka
+    - python-openstackclient
+    - openstack-selinux
+  register: os_pkg
+  tags: 
+    - additional_pkgs
+
+- name: Setup NTP
+  yum: 
+    name: chrony 
+    state: present
+
+  service: 
+    name: chronyd 
+    state: started 
+    enabled: yes
+  register: ntp_conf
+  tags:
+    - setup_ntp
+
+- name: Disable NetworkManager and Firewalld
+  service: name={{ item }} state=stopped enabled=no
+  with_items:
+    - firewalld
+    - NetworkManager
+  register: unwanted_service
+  tags:
+    - disable_unwanted_srv 
+
+ 

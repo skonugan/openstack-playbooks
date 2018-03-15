@@ -1,0 +1,9 @@
+---
+# handlers file for rabbitmq
+
+- name: rabbitmqctl cluster_status
+  command: rabbitmqctl cluster_status
+  register: mq_cluster_check
+- debug:
+    msg: "{{mq_cluster_check.stdout}}"
+

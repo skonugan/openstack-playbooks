@@ -1,0 +1,93 @@
+---
+# tasks file for pacemaker
+
+- name: Install pacemaker and corosync
+  package: name={{item}} state=present
+  with_items:
+     - pcs
+     - pacemaker
+     - corosync
+     - fence-agents
+     - resource-agents
+  register: pcs_install
+  tags:
+    - install_pcs_corosync
+
+- name: Start pcs service
+  service: name=pcsd state=started enabled=yes
+  register: pcsd_src
+  delay: 5
+  tags:
+    - start_pcsd
+
+- name: Setp password for hacluster user
+  shell: echo {{pcs_pass}} | passwd --stdin {{pcs_user}}
+  register: hscluser_pass
+  tags:
+    - set_pass_hacluster
+
+- name: Authenticate all cluster nodes
+  command: pcs cluster auth {{controller1_host}} {{controller2_host}} {{controller3_host}} -u {{pcs_user}} -p {{pcs_pass}} --force
+  register: auth_pcs
+  when: ansible_nodename=="{{controller1_host}}"
+  until: auth_pcs | success
+  retries: 2
+  delay: 5
+  tags:
+    - auth_pcs_cluster
+
+- name: Create and name cluster
+  command: pcs cluster setup --force --name {{pcs_clus_name}} {{controller1_host}} {{controller2_host}} {{controller3_host}}
+  register: set_pcs_cluster
+  when: ansible_nodename=="{{controller1_host}}"
+  until: set_pcs_cluster | success
+  retries: 3
+  delay: 10
+  tags:
+    - create_pcs_cluster
+
+- name: Start cluster services
+  command: "{{item}}"
+  with_items:
+    - pcs cluster start --all
+    - pcs cluster enable --all
+  register: start_cluster
+  when: ansible_nodename=="{{controller1_host}}"
+  until: start_cluster | success
+  retries: 3
+  delay: 10
+  tags:
+    - start_pcs_cluster
+
+#- name: Set Basic cluster properties
+#  command: "{{item}}"
+#  with_items:
+#    - crm configure property pe-warn-series-max="1000" pe-input-series-max="1000" pe-error-series-max="1000" cluster-recheck-interval="5min"
+#    - pcs property set pe-warn-series-max=1000 pe-input-series-max=1000 pe-error-series-max=1000 cluster-recheck-interval=5min
+#  register: set_pcs_params
+#  when: ansible_nodename=="{{controller1_host}}"
+#  until: set_pcs_params | success
+#  retries: 3
+#  delay: 5
+#  tags:
+#    - set_param_pcs
+
+- name: Assign a VIP to cluster
+  command: pcs resource create {{vip_name}} IPaddr2 params ip="{{controller_ip}}" op monitor interval="30s"
+  register: assign_vip
+  when: ansible_nodename=="{{controller3_host}}"
+  tags:
+    - create_pcs_vip
+
+- name: View status and config of pacemaker cluster
+  shell: hostname
+  ignore_errors: no
+  changed_when: true
+  register: pcs_status
+  tags:
+    - check_pcs_status
+
+- debug: 
+    var: pcs_status 
+    verbosity: 2
+
